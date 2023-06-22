@@ -64,6 +64,24 @@ func TestCurlBuilder_String(t *testing.T) {
 			},
 			want: "curl -X GET http://test.com",
 		},
+		{
+			name: "Test 5s",
+			fields: fields{
+				url:     "http://test.com",
+				method:  "GET",
+				headers: []string{"Content-Type", "text/html"},
+			},
+			want: "curl -X GET -H 'Content-Type: text/html' http://test.com",
+		},
+		{
+			name: "Test 6",
+			fields: fields{
+				url:     "http://test.com",
+				method:  "GET",
+				headers: []string{"Content-Type", "text/html", "Accept", "application/xml"},
+			},
+			want: "curl -X GET -H 'Accept: application/xml' -H 'Content-Type: text/html' http://test.com",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

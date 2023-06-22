@@ -57,7 +57,7 @@ func (b *CurlBuilder) String() string {
 	sort.Strings(keys)
 
 	for _, key := range keys {
-		_, _ = fmt.Fprintf(buf, "-H %s: %s ", key, escape(strings.Join(headers[key], " ")))
+		_, _ = fmt.Fprintf(buf, "-H %s ", escape(key+": "+strings.Join(headers[key], " ")))
 	}
 
 	_, _ = fmt.Fprintf(buf, b.url)
