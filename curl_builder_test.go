@@ -27,12 +27,14 @@ func TestCurlBuilder_String(t *testing.T) {
 			fields: fields{
 				url: "http://test.com",
 				body: map[string]interface{}{
-					"name": "test",
+					"name":  "test",
+					"bar":   "foo",
+					"slice": []int{1, 2, 3},
 				},
 				method:  "POST",
 				headers: nil,
 			},
-			want: "curl -X POST -d '{\"name\":\"test\"}' http://test.com",
+			want: "curl -X POST -d '{\"bar\":\"foo\",\"name\":\"test\",\"slice\":[1,2,3]}' http://test.com",
 		},
 		{
 			name: "Test 2",
