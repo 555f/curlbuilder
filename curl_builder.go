@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -32,6 +33,8 @@ func (b *CurlBuilder) String() string {
 		switch t := b.body.(type) {
 		default:
 			body, _ = json.Marshal(b.body)
+		case io.Reader:
+			body, _ = io.ReadAll(t)
 		case string:
 			body = []byte(t)
 		case []byte:
