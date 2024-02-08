@@ -1,10 +1,12 @@
-package curlbuilder
+package curlbuilder_test
 
 import (
 	"bytes"
 	"encoding/json"
 	"net/http"
 	"testing"
+
+	"github.com/555f/curlbuilder"
 )
 
 func TestFromRequest(t *testing.T) {
@@ -46,8 +48,10 @@ func TestFromRequest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := FromRequest(tt.args.r()); got != tt.want {
-				t.Errorf("FromRequest() = %v, want %v", got, tt.want)
+			b := curlbuilder.New()
+			b.SetRequest(tt.args.r())
+			if got := b.String(); got != tt.want {
+				t.Errorf("String() = %v, want %v", got, tt.want)
 			}
 		})
 	}

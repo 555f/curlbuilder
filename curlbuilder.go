@@ -8,14 +8,16 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+
+	"github.com/labstack/echo/v4"
 )
 
 type CurlBuilder struct {
 	url     string
-	https   bool
 	body    interface{}
 	method  string
 	headers []string
+	secrets map[string]struct{}
 }
 
 func (b *CurlBuilder) String() string {
@@ -53,6 +55,9 @@ func (b *CurlBuilder) String() string {
 	for i := 0; i < len(b.headers); i += 2 {
 		key := b.headers[i]
 		value := b.headers[i+1]
+		if _, ok := b.secrets[key]; ok {
+			value = strings.Repeat("*", len(value))
+		}
 		headers[key] = append(headers[key], value)
 		keys = append(keys, key)
 	}
@@ -66,6 +71,28 @@ func (b *CurlBuilder) String() string {
 	_, _ = fmt.Fprintf(buf, b.url)
 
 	return buf.String()
+}
+
+func (b *CurlBuilder) SetRequest(r *http.Request) *CurlBuilder {
+	keys := make([]string, 0, len(r.Header))
+	for k := range r.Header {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	headers := make([]string, 0, len(keys)*2)
+	for _, headerName := range keys {
+		headers = append(headers, headerName, r.Header.Get(headerName))
+	}
+	b.SetBody(r.Body).
+		SetHeaders(headers...).
+		SetMethod(r.Method).
+		SetURL(r.URL.String())
+	return b
+}
+
+func (b *CurlBuilder) SetEchoContext(ctx echo.Context) *CurlBuilder {
+	return b.SetRequest(ctx.Request())
 }
 
 func (b *CurlBuilder) SetURL(url string) *CurlBuilder {
@@ -91,8 +118,15 @@ func (b *CurlBuilder) SetBody(body interface{}) *CurlBuilder {
 	return b
 }
 
+func (b *CurlBuilder) SetSecret(fields ...string) {
+	for _, f := range fields {
+		b.secrets[f] = struct{}{}
+	}
+}
+
 func New() *CurlBuilder {
 	return &CurlBuilder{
-		method: http.MethodGet,
+		method:  http.MethodGet,
+		secrets: make(map[string]struct{}, 32),
 	}
 }
