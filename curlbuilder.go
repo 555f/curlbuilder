@@ -118,10 +118,11 @@ func (b *CurlBuilder) SetBody(body interface{}) *CurlBuilder {
 	return b
 }
 
-func (b *CurlBuilder) SetSecret(fields ...string) {
+func (b *CurlBuilder) SetSecret(fields ...string) *CurlBuilder {
 	for _, f := range fields {
 		b.secrets[f] = struct{}{}
 	}
+	return b
 }
 
 func New() *CurlBuilder {
