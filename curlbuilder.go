@@ -84,7 +84,11 @@ func (b *CurlBuilder) SetRequest(r *http.Request) *CurlBuilder {
 	for _, headerName := range keys {
 		headers = append(headers, headerName, r.Header.Get(headerName))
 	}
-	b.SetBody(r.Body).
+
+	var saveBody io.ReadCloser
+	saveBody, r.Body, _ = drainBody(r.Body)
+
+	b.SetBody(saveBody).
 		SetHeaders(headers...).
 		SetMethod(r.Method).
 		SetURL(r.URL.String())
