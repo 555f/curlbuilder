@@ -12,12 +12,20 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+type FormType string
+
+const (
+	MultipartFormType  FormType = "multipart"
+	UrlencodedFormType FormType = "urlencoded"
+)
+
 type CurlBuilder struct {
-	url     string
-	body    interface{}
-	method  string
-	headers []string
-	secrets map[string]struct{}
+	url                 string
+	body                interface{}
+	method              string
+	formType            FormType
+	headers, formValues []string
+	secrets             map[string]struct{}
 }
 
 func (b *CurlBuilder) String() string {
@@ -48,50 +56,117 @@ func (b *CurlBuilder) String() string {
 	}
 
 	var (
-		headers = map[string][]string{}
-		keys    = make([]string, 0, len(b.headers))
+		headers    = map[string][]string{}
+		headerKeys = make([]string, 0, len(b.headers))
+
+		formValues = map[string]string{}
+		formKeys   = make([]string, 0, len(b.formValues))
 	)
 
 	for i := 0; i < len(b.headers); i += 2 {
 		key := b.headers[i]
 		value := b.headers[i+1]
 		if _, ok := b.secrets[key]; ok {
-			value = strings.Repeat("*", len(value))
+			value = "*****"
 		}
 		headers[key] = append(headers[key], value)
-		keys = append(keys, key)
+		headerKeys = append(headerKeys, key)
 	}
+	sort.Strings(headerKeys)
 
-	sort.Strings(keys)
+	for i := 0; i < len(b.formValues); i += 2 {
+		key := b.formValues[i]
+		value := b.formValues[i+1]
+		if _, ok := b.secrets[key]; ok {
+			value = strings.Repeat("*", len(value))
+		}
+		formValues[key] = value
+		formKeys = append(formKeys, key)
+	}
+	sort.Strings(formKeys)
 
-	for _, key := range keys {
+	for _, key := range headerKeys {
 		_, _ = fmt.Fprintf(buf, "-H %s ", escape(key+": "+strings.Join(headers[key], " ")))
 	}
 
-	_, _ = fmt.Fprintf(buf, b.url)
+	if len(formKeys) > 0 {
+		switch b.formType {
+		case UrlencodedFormType:
+			_, _ = fmt.Fprintf(buf, "-d \"")
+			for i, key := range formKeys {
+				if i > 0 {
+					_, _ = fmt.Fprint(buf, "&")
+				}
+				_, _ = fmt.Fprintf(buf, "%s", key+"="+formValues[key])
+			}
+			_, _ = fmt.Fprintf(buf, "\" ")
+		case MultipartFormType:
+			for _, key := range formKeys {
+				_, _ = fmt.Fprintf(buf, "-F %s", escape(key+"="+formValues[key]))
+			}
+			_, _ = fmt.Fprintf(buf, " ")
+		}
+	}
+
+	_, _ = fmt.Fprint(buf, escape(b.url))
 
 	return buf.String()
 }
 
 func (b *CurlBuilder) SetRequest(r *http.Request) *CurlBuilder {
-	keys := make([]string, 0, len(r.Header))
+	headerKeys := make([]string, 0, len(r.Header))
 	for k := range r.Header {
-		keys = append(keys, k)
+		headerKeys = append(headerKeys, k)
 	}
-	sort.Strings(keys)
+	sort.Strings(headerKeys)
 
-	headers := make([]string, 0, len(keys)*2)
-	for _, headerName := range keys {
+	headers := make([]string, 0, len(headerKeys)*2)
+	for _, headerName := range headerKeys {
 		headers = append(headers, headerName, r.Header.Get(headerName))
+	}
+
+	if r.MultipartForm == nil {
+		formKeys := make([]string, 0, len(r.PostForm))
+		for k := range r.Form {
+			formKeys = append(formKeys, k)
+		}
+		sort.Strings(formKeys)
+
+		formValues := make([]string, 0, len(formKeys)*2)
+		for _, formName := range formKeys {
+			formValues = append(formValues, formName, r.Form.Get(formName))
+		}
+		b.SetFormValues(MultipartFormType, formValues...)
+	} else {
+		formKeys := make([]string, 0, len(r.MultipartForm.Value))
+		for k := range r.Form {
+			formKeys = append(formKeys, k)
+		}
+		sort.Strings(formKeys)
+
+		formValues := make([]string, 0, len(formKeys)*2)
+		for _, formName := range formKeys {
+			formValues = append(formValues, formName, r.Form.Get(formName))
+		}
+		b.SetFormValues(UrlencodedFormType, formValues...)
 	}
 
 	var saveBody io.ReadCloser
 	saveBody, r.Body, _ = drainBody(r.Body)
 
-	b.SetBody(saveBody).
-		SetHeaders(headers...).
-		SetMethod(r.Method).
-		SetURL(r.URL.String())
+	schema := r.URL.Scheme
+	requestURL := r.URL.String()
+
+	if schema == "" {
+		schema = "http"
+		if r.TLS != nil {
+			schema = "https"
+		}
+		requestURL = schema + "://" + r.Host + r.URL.Path
+	}
+
+	b.SetBody(saveBody).SetHeaders(headers...).SetMethod(r.Method).SetURL(requestURL)
+
 	return b
 }
 
@@ -119,6 +194,15 @@ func (b *CurlBuilder) SetMethod(method string) *CurlBuilder {
 
 func (b *CurlBuilder) SetBody(body interface{}) *CurlBuilder {
 	b.body = body
+	return b
+}
+
+func (b *CurlBuilder) SetFormValues(formType FormType, formValues ...string) *CurlBuilder {
+	if len(formValues)%2 != 0 {
+		panic("SetFormValues: form values must be key/value")
+	}
+	b.formType = formType
+	b.formValues = formValues
 	return b
 }
 

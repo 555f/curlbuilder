@@ -27,7 +27,7 @@ func TestFromRequest(t *testing.T) {
 					return r
 				},
 			},
-			want: "curl -X GET -H 'Content-Type: text/html' http://test.com",
+			want: "curl -X GET -H 'Content-Type: text/html' 'http://test.com'",
 		},
 		{
 			name: "",
@@ -43,7 +43,7 @@ func TestFromRequest(t *testing.T) {
 					return r
 				},
 			},
-			want: "curl -X POST -d '{\"bar\":\"foo\",\"name\":\"test\",\"slice\":[1,2,3]}' http://test.com",
+			want: "curl -X POST -d '{\"bar\":\"foo\",\"name\":\"test\",\"slice\":[1,2,3]}' 'http://test.com'",
 		},
 	}
 	for _, tt := range tests {

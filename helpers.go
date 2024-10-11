@@ -8,6 +8,29 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+var _ http.RoundTripper = &RoundTripper{}
+
+type Printer interface {
+	Print(s string)
+}
+
+type RoundTripper struct {
+	printer Printer
+	next    http.RoundTripper
+}
+
+// RoundTrip implements http.RoundTripper.
+func (r *RoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	go func() {
+		r.printer.Print(FromRequest(req))
+	}()
+	return r.next.RoundTrip(req)
+}
+
+func FromRoundTripper(next http.RoundTripper, printer Printer) *RoundTripper {
+	return &RoundTripper{next: next, printer: printer}
+}
+
 func FromRequest(r *http.Request) string {
 	return New().SetRequest(r).String()
 }
