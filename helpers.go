@@ -21,9 +21,8 @@ type RoundTripper struct {
 
 // RoundTrip implements http.RoundTripper.
 func (r *RoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	go func() {
-		r.printer.Print(FromRequest(req))
-	}()
+	r.printer.Print(FromRequest(req))
+
 	return r.next.RoundTrip(req)
 }
 
