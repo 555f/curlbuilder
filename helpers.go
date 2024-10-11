@@ -2,6 +2,7 @@ package curlbuilder
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 
@@ -11,7 +12,7 @@ import (
 var _ http.RoundTripper = &RoundTripper{}
 
 type Printer interface {
-	Print(s string)
+	Print(ctx context.Context, s string)
 }
 
 type RoundTripper struct {
@@ -22,7 +23,7 @@ type RoundTripper struct {
 
 // RoundTrip implements http.RoundTripper.
 func (r *RoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	r.printer.Print(FromRequest(req).SetSecret(r.secrets...).String())
+	r.printer.Print(req.Context(), FromRequest(req).SetSecret(r.secrets...).String())
 	return r.next.RoundTrip(req)
 }
 
